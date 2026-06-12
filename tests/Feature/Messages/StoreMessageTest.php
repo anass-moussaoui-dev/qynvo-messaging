@@ -85,7 +85,10 @@ class StoreMessageTest extends TestCase
                     'created_at' => '2026-06-12T10:00:00+00:00',
                 ],
             ])
-            ->assertJsonStructure(['data' => ['id', 'itinerary_id', 'sender_type', 'content', 'created_at']]);
+            ->assertJsonStructure(['data' => ['id', 'itinerary_id', 'sender_type', 'content', 'created_at']])
+            // Part of the POST contract: suggested_reply is always present —
+            // null here because the suite runs without an Anthropic API key.
+            ->assertJsonPath('suggested_reply', null);
 
         $this->assertDatabaseHas('messages', [
             'id' => $response->json('data.id'),
@@ -102,7 +105,9 @@ class StoreMessageTest extends TestCase
 
         $response
             ->assertCreated()
-            ->assertJsonPath('data.sender_type', 'agency');
+            ->assertJsonPath('data.sender_type', 'agency')
+            // Agency messages never get an AI suggestion — explicit null.
+            ->assertJsonPath('suggested_reply', null);
 
         $this->assertDatabaseHas('messages', [
             'sender_id' => $this->agency->id,

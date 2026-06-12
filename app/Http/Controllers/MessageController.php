@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserType;
 use App\Events\MessageSent;
 use App\Http\Requests\StoreMessageRequest;
 use App\Http\Resources\MessageResource;
@@ -9,6 +10,7 @@ use App\Models\Itinerary;
 use App\Models\Message;
 use App\Models\User;
 use App\Policies\MessagePolicy;
+use App\Services\SuggestsAgencyReply;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -26,6 +28,7 @@ class MessageController extends Controller
 {
     public function __construct(
         private readonly MessagePolicy $policy,
+        private readonly SuggestsAgencyReply $suggestsAgencyReply,
     ) {}
 
     /**
@@ -65,7 +68,15 @@ class MessageController extends Controller
 
         MessageSent::dispatch($message);
 
+        // Synchronous by design: the queued listener runs after this response
+        // is sent, so it could never populate suggested_reply (see README).
+        // Agency replies are only suggested for traveller messages.
+        $suggestedReply = $sender->type === UserType::Traveller
+            ? $this->suggestsAgencyReply->suggest($message)
+            : null;
+
         return (new MessageResource($message))
+            ->additional(['suggested_reply' => $suggestedReply])
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
     }
