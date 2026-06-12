@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Qynvo Messaging API",
-    "description": "Manual test collection for the itinerary messaging API.\n\nStart the app with `php artisan serve`, then run requests individually or use the Collection Runner — every request carries its own status/shape assertions.\n\nThe acting user is identified by the `X-User-Id` header (this task's stand-in for real authentication). Adjust the collection variables if your local IDs differ:\n- travellerId / agencyId: the two participants of `itineraryId` (seeded as 1 / 2 / 1)\n- outsiderId: any existing user who is NOT a participant (needed for the 403 cases)",
+    "description": "Manual test collection for the itinerary messaging API.\n\nStart the app with `php artisan serve`, then run requests individually or use the Collection Runner — every request carries its own status/shape assertions.\n\nThe acting user is identified by the `X-User-Id` header (this task's stand-in for real authentication). Adjust the collection variables if your local IDs differ:\n- travellerId / agencyId: the two participants of `itineraryId` (seeded as 1 / 2 / 1)\n- outsiderId: any existing user who is NOT a participant (needed for the 403 cases)\n\nAI suggested replies: every POST /messages response includes a top-level `suggested_reply` — a Claude-drafted agency reply for traveller messages when ANTHROPIC_API_KEY is set in .env (restart the server after setting it), null otherwise. The 'AI suggested replies' folder covers both modes; check the Postman Console to read the generated suggestions.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -91,6 +91,9 @@
                   "pm.test('201 Created', () => pm.response.to.have.status(201));",
                   "pm.test('sender_type derived as traveller', () => {",
                   "    pm.expect(pm.response.json().data.sender_type).to.eql('traveller');",
+                  "});",
+                  "pm.test('suggested_reply key is always present on POST', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('suggested_reply');",
                   "});"
                 ]
               }
@@ -127,6 +130,9 @@
                   "pm.test('201 Created', () => pm.response.to.have.status(201));",
                   "pm.test('sender_type derived as agency', () => {",
                   "    pm.expect(pm.response.json().data.sender_type).to.eql('agency');",
+                  "});",
+                  "pm.test('agency messages never get an AI suggestion', () => {",
+                  "    pm.expect(pm.response.json().suggested_reply).to.eql(null);",
                   "});"
                 ]
               }
@@ -178,6 +184,140 @@
             "body": {
               "mode": "raw",
               "raw": "{\n    \"itinerary_id\": {{itineraryId}},\n    \"sender_id\": {{outsiderId}},\n    \"sender_type\": \"agency\",\n    \"content\": \"Trying to impersonate — sender fields in the body must be ignored.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "AI suggested replies",
+      "description": "Manual testing for the Claude-powered suggested_reply field on POST /messages.\n\nTwo modes, both covered by the assertions:\n- With ANTHROPIC_API_KEY set in .env (restart `php artisan serve` after saving): suggested_reply is a short, non-empty agency reply — read it in the Postman Console (View → Show Postman Console).\n- Without a key: graceful degradation — the message still sends (201) and suggested_reply is null.\n\nSend the two traveller requests in order to see context-awareness: the second suggestion should acknowledge the first question.",
+      "item": [
+        {
+          "name": "Traveller message → AI reply suggested (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created — AI can never block message sending', () => pm.response.to.have.status(201));",
+                  "pm.test('suggested_reply key is always present', () => {",
+                  "    pm.expect(pm.response.json()).to.have.property('suggested_reply');",
+                  "});",
+                  "pm.test('suggested_reply is a non-empty string, or null when degraded', () => {",
+                  "    const reply = pm.response.json().suggested_reply;",
+                  "    if (reply === null) {",
+                  "        console.log('suggested_reply is null — set ANTHROPIC_API_KEY in .env and restart the server to see real AI suggestions.');",
+                  "    } else {",
+                  "        pm.expect(reply).to.be.a('string');",
+                  "        pm.expect(reply.length).to.be.above(0);",
+                  "        console.log('AI suggested reply: ' + reply);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{travellerId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"itinerary_id\": {{itineraryId}},\n    \"content\": \"Hi! What time should we be ready for the airport transfer on Friday?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Context-aware follow-up (201 — eyeball the suggestion)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('suggested_reply is a non-empty string, or null when degraded', () => {",
+                  "    const reply = pm.response.json().suggested_reply;",
+                  "    if (reply === null) {",
+                  "        console.log('suggested_reply is null — set ANTHROPIC_API_KEY in .env and restart the server to see real AI suggestions.');",
+                  "    } else {",
+                  "        pm.expect(reply).to.be.a('string');",
+                  "        pm.expect(reply.length).to.be.above(0);",
+                  "        console.log('AI suggested reply (should reference the transfer question sent before): ' + reply);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "description": "Send right after the previous request. The service passes the itinerary's last 10 messages as conversation context, so with a real key the suggestion here should acknowledge the earlier airport-transfer question — that's the context-awareness you're eyeballing.",
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{travellerId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"itinerary_id\": {{itineraryId}},\n    \"content\": \"Also — is the city tour still on for that afternoon, after we arrive?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Agency message → suggested_reply strictly null (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('suggested_reply is strictly null for agency senders', () => {",
+                  "    // Even with a real API key configured: replies are only",
+                  "    // suggested FOR the agency, never TO the traveller.",
+                  "    pm.expect(pm.response.json().suggested_reply).to.eql(null);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{agencyId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"itinerary_id\": {{itineraryId}},\n    \"content\": \"Transfer confirmed for 9:00 AM — your guide will meet you in the lobby.\"\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
