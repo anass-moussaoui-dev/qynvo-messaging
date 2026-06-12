@@ -1,0 +1,417 @@
+{
+  "info": {
+    "name": "Qynvo Messaging API",
+    "description": "Manual test collection for the itinerary messaging API.\n\nStart the app with `php artisan serve`, then run requests individually or use the Collection Runner — every request carries its own status/shape assertions.\n\nThe acting user is identified by the `X-User-Id` header (this task's stand-in for real authentication). Adjust the collection variables if your local IDs differ:\n- travellerId / agencyId: the two participants of `itineraryId` (seeded as 1 / 2 / 1)\n- outsiderId: any existing user who is NOT a participant (needed for the 403 cases)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:8000/api" },
+    { "key": "itineraryId", "value": "1" },
+    { "key": "travellerId", "value": "1" },
+    { "key": "agencyId", "value": "2" },
+    { "key": "outsiderId", "value": "3" }
+  ],
+  "item": [
+    {
+      "name": "Happy paths",
+      "item": [
+        {
+          "name": "List messages — as traveller (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('data is an array of messages', () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.data).to.be.an('array');",
+                  "    if (body.data.length > 0) {",
+                  "        pm.expect(body.data[0]).to.have.all.keys('id', 'itinerary_id', 'sender_type', 'content', 'created_at');",
+                  "    }",
+                  "});",
+                  "pm.test('messages are ordered oldest first', () => {",
+                  "    const dates = pm.response.json().data.map(m => m.created_at);",
+                  "    pm.expect([...dates].sort()).to.eql(dates);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{travellerId}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/messages/{{itineraryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages", "{{itineraryId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List messages — as agency (200)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{agencyId}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/messages/{{itineraryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages", "{{itineraryId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send message — as traveller (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('sender_type derived as traveller', () => {",
+                  "    pm.expect(pm.response.json().data.sender_type).to.eql('traveller');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{travellerId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"itinerary_id\": {{itineraryId}},\n    \"content\": \"Hello from Postman — is the pickup still at 9:00 AM?\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send message — as agency (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('sender_type derived as agency', () => {",
+                  "    pm.expect(pm.response.json().data.sender_type).to.eql('agency');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{agencyId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"itinerary_id\": {{itineraryId}},\n    \"content\": \"Yes — confirmed for 9:00 AM at the lobby.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Spoofed sender in body is ignored (201)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('sender_type comes from the header user, not the body', () => {",
+                  "    pm.expect(pm.response.json().data.sender_type).to.eql('traveller');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{travellerId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"itinerary_id\": {{itineraryId}},\n    \"sender_id\": {{outsiderId}},\n    \"sender_type\": \"agency\",\n    \"content\": \"Trying to impersonate — sender fields in the body must be ignored.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error contract",
+      "item": [
+        {
+          "name": "401 — missing X-User-Id header",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/messages/{{itineraryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages", "{{itineraryId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "401 — unknown X-User-Id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401 Unauthorized', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "999999" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"itinerary_id\": {{itineraryId}},\n    \"content\": \"Nobody is sending this.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "403 — outsider lists messages",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{outsiderId}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/messages/{{itineraryId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages", "{{itineraryId}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "403 — outsider sends a message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403 Forbidden', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{outsiderId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"itinerary_id\": {{itineraryId}},\n    \"content\": \"I am not part of this itinerary.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "404 — unknown itinerary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404 Not Found', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{travellerId}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/messages/999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages", "999999"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "422 — empty content",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 Unprocessable', () => pm.response.to.have.status(422));",
+                  "pm.test('content error reported', () => {",
+                  "    pm.expect(pm.response.json().errors).to.have.property('content');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{travellerId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"itinerary_id\": {{itineraryId}},\n    \"content\": \"\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "422 — itinerary_id not in database",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('422 Unprocessable', () => pm.response.to.have.status(422));",
+                  "pm.test('itinerary_id error reported', () => {",
+                  "    pm.expect(pm.response.json().errors).to.have.property('itinerary_id');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "X-User-Id", "value": "{{travellerId}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"itinerary_id\": 999999,\n    \"content\": \"Valid content, invalid itinerary.\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["messages"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
