@@ -9,14 +9,20 @@ class Message extends Model
 { 
     use HasFactory;
 
-    protected $fillable = ['itinerary_id','sender_type','content'];
+    protected $fillable = ['itinerary_id','sender_id','sender_type','content'];
     protected $casts = [
-        'sender_type' => \App\Enums\SenderType::class,
+        'sender_type' => \App\Enums\UserType::class,
     ];
+
 
     public function itinerary()
     {
         return $this->belongsTo(Itinerary::class);
+    }
+
+    public function sender()
+    {
+        return $this->belongsTo(User::class, 'sender_id');
     }
 
 }

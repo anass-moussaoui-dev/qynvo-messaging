@@ -15,7 +15,9 @@ return new class extends Migration
         Schema::create('messages', function (Blueprint $table) {
             $table->id();
             // I avoided onDelete cascade to preserve messages for historical purposes, but it can be added if needed. (we can also use soft delete to prevent data loss )
-            $table->foreignId('itinerary_id')->constrained();             
+            $table->foreignId('itinerary_id')->constrained();   
+            $table->foreignId('sender_id')->constrained('users');
+        
             // we can use enum type for more strictness. However, it has limited support on SQLite, so I used a string with a DB-level check constraint for compatibility.
             $table->string('sender_type');
             $table->text('content');

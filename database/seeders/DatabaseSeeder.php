@@ -2,7 +2,7 @@
 
 namespace Database\Seeders;
 
-use App\Enums\SenderType;
+use App\Enums\UserType;
 use App\Models\Itinerary;
 use App\Models\Message;
 use App\Models\User;
@@ -18,24 +18,29 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
+        // Two participants — no authentication, just seeded actors.
+        $traveller = User::factory()->traveller()->create(['name' => 'Ricardo Rios']);
+        $agency    = User::factory()->agency()->create(['name' => 'Anass Elmou']);
+
+        // An itinerary linking this traveller and agency.
         $itinerary = Itinerary::factory()->create([
-            'traveller_id' => 1,
-            'agency_id'    => 1,
+            'traveller_id' => $traveller->id,
+            'agency_id'    => $agency->id,
         ]);
 
-        // conversations that I generated with Ai.
+        // A short, realistic traveller <-> agency conversation.
         $conversation = [
-            [SenderType::Traveller, 'Hi, what time is the airport pickup tomorrow?'],
-            [SenderType::Agency,    'Hello! Your driver will arrive at 9:00 AM at the hotel lobby.'],
-            [SenderType::Traveller, 'Perfect, thank you. Is the city tour still on for the afternoon?'],
-            [SenderType::Agency,    'Yes — the guide will meet you at 2:00 PM. Enjoy your trip!'],
+            [$traveller, 'Hi, what time is the airport pickup tomorrow?'],
+            [$agency,    'Hello! Your driver will arrive at 9:00 AM at the hotel lobby.'],
+            [$traveller, 'Perfect, thank you. Is the city tour still on for the afternoon?'],
+            [$agency,    'Yes — the guide will meet you at 2:00 PM. Enjoy your trip!'],
         ];
 
         foreach ($conversation as [$sender, $content]) {
-            Message::factory()->for($itinerary)->create([
-                'sender_type' => $sender,
-                'content'     => $content,
-            ]);
+            Message::factory()
+                ->for($itinerary)
+                ->from($sender)
+                ->create(['content' => $content]);
         }
     }
 }

@@ -2,7 +2,7 @@
 
 namespace App\Enums;
 
-enum SenderType : string
+enum UserType: string
 {
     case Traveller = 'traveller';
     case Agency = 'agency';
