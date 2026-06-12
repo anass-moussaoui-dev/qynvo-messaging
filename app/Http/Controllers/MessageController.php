@@ -35,13 +35,21 @@ class MessageController extends Controller
 
     /**
      * Send a new message.
+     *
+     * The sender is the acting user (X-User-Id header), never a payload value,
+     * so identity cannot be spoofed through the request body.
      */
     public function store(StoreMessageRequest $request)
     {
-        $sender = User::findOrFail($request->validated('sender_id'));
+        $sender    = User::findOrFail($request->header('X-User-Id'));
+        $itinerary = Itinerary::findOrFail($request->validated('itinerary_id'));
+
+        // Gate::allowIf instead of $this->authorize(): policy discovery maps
+        // MessagePolicy to the Message model, not to the Itinerary passed here.
+        Gate::allowIf(app(MessagePolicy::class)->sendMessage($sender, $itinerary));
 
         $message = Message::create([
-            'itinerary_id' => $request->validated('itinerary_id'),
+            'itinerary_id' => $itinerary->id,
             'sender_id'    => $sender->id,
             'sender_type'  => $sender->type,   // derived — single source of truth
             'content'      => $request->validated('content'),
