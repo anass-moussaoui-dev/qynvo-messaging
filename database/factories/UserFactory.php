@@ -2,11 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Enums\UserType;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
-use App\Enums\UserType;
 
 /**
  * @extends Factory<User>
@@ -45,7 +45,7 @@ class UserFactory extends Factory
         ]);
     }
 
-       /**
+    /**
      * Indicate that the user is a traveller.
      */
     public function traveller(): static

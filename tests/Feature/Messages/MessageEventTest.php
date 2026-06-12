@@ -57,7 +57,7 @@ class MessageEventTest extends TestCase
     {
         return [
             'itinerary_id' => $this->itinerary->id,
-            'content'      => 'Is the city tour still on for the afternoon?',
+            'content' => 'Is the city tour still on for the afternoon?',
         ];
     }
 

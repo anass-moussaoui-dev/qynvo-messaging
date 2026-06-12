@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\UserType;
 use App\Models\Itinerary;
 use App\Models\Message;
 use App\Models\User;
@@ -20,12 +19,12 @@ class DatabaseSeeder extends Seeder
     {
         // Two participants — no authentication, just seeded actors.
         $traveller = User::factory()->traveller()->create(['name' => 'Ricardo Rios']);
-        $agency    = User::factory()->agency()->create(['name' => 'Anass Elmou']);
+        $agency = User::factory()->agency()->create(['name' => 'Anass Elmou']);
 
         // An itinerary linking this traveller and agency.
         $itinerary = Itinerary::factory()->create([
             'traveller_id' => $traveller->id,
-            'agency_id'    => $agency->id,
+            'agency_id' => $agency->id,
         ]);
 
         // A short, realistic traveller <-> agency conversation.

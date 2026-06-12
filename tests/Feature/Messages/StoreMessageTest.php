@@ -40,12 +40,12 @@ class StoreMessageTest extends TestCase
         parent::setUp();
 
         $this->traveller = User::factory()->traveller()->create();
-        $this->agency    = User::factory()->agency()->create();
-        $this->outsider  = User::factory()->create();
+        $this->agency = User::factory()->agency()->create();
+        $this->outsider = User::factory()->create();
 
         $this->itinerary = Itinerary::factory()->create([
             'traveller_id' => $this->traveller->id,
-            'agency_id'    => $this->agency->id,
+            'agency_id' => $this->agency->id,
         ]);
     }
 
@@ -61,7 +61,7 @@ class StoreMessageTest extends TestCase
     {
         return array_merge([
             'itinerary_id' => $this->itinerary->id,
-            'content'      => 'Hi, what time is the airport pickup tomorrow?',
+            'content' => 'Hi, what time is the airport pickup tomorrow?',
         ], $overrides);
     }
 
@@ -80,19 +80,19 @@ class StoreMessageTest extends TestCase
             ->assertJson([
                 'data' => [
                     'itinerary_id' => $this->itinerary->id,
-                    'sender_type'  => 'traveller',
-                    'content'      => 'Hi, what time is the airport pickup tomorrow?',
-                    'created_at'   => '2026-06-12T10:00:00+00:00',
+                    'sender_type' => 'traveller',
+                    'content' => 'Hi, what time is the airport pickup tomorrow?',
+                    'created_at' => '2026-06-12T10:00:00+00:00',
                 ],
             ])
             ->assertJsonStructure(['data' => ['id', 'itinerary_id', 'sender_type', 'content', 'created_at']]);
 
         $this->assertDatabaseHas('messages', [
-            'id'           => $response->json('data.id'),
+            'id' => $response->json('data.id'),
             'itinerary_id' => $this->itinerary->id,
-            'sender_id'    => $this->traveller->id,
-            'sender_type'  => UserType::Traveller->value,
-            'content'      => 'Hi, what time is the airport pickup tomorrow?',
+            'sender_id' => $this->traveller->id,
+            'sender_type' => UserType::Traveller->value,
+            'content' => 'Hi, what time is the airport pickup tomorrow?',
         ]);
     }
 
@@ -105,7 +105,7 @@ class StoreMessageTest extends TestCase
             ->assertJsonPath('data.sender_type', 'agency');
 
         $this->assertDatabaseHas('messages', [
-            'sender_id'   => $this->agency->id,
+            'sender_id' => $this->agency->id,
             'sender_type' => UserType::Agency->value,
         ]);
     }
@@ -116,7 +116,7 @@ class StoreMessageTest extends TestCase
         // sender_id and sender_type are not validated input, so they must be
         // discarded in favor of the header user and their actual type.
         $response = $this->postJson('/api/messages', $this->validPayload([
-            'sender_id'   => $this->outsider->id,
+            'sender_id' => $this->outsider->id,
             'sender_type' => 'agency',
         ]), $this->asUser($this->traveller));
 
@@ -125,7 +125,7 @@ class StoreMessageTest extends TestCase
             ->assertJsonPath('data.sender_type', 'traveller');
 
         $this->assertDatabaseHas('messages', [
-            'sender_id'   => $this->traveller->id,
+            'sender_id' => $this->traveller->id,
             'sender_type' => UserType::Traveller->value,
         ]);
         $this->assertDatabaseMissing('messages', ['sender_id' => $this->outsider->id]);
@@ -142,21 +142,21 @@ class StoreMessageTest extends TestCase
     }
 
     /**
-     * Note: 401 Unauthorized would be the semantically correct status for a
-     * request with no actor. 404 is the current behavior (User::findOrFail on
-     * a null header) and this test pins it without endorsing it.
+     * A missing or unknown actor is a deliberate 401 (authentication
+     * failure), kept distinct from 403 (valid actor, not a participant) and
+     * 404 (the resource itself does not exist).
      */
-    public function test_request_without_user_header_returns_404(): void
+    public function test_request_without_user_header_is_unauthenticated(): void
     {
-        $this->postJson('/api/messages', $this->validPayload())->assertNotFound();
+        $this->postJson('/api/messages', $this->validPayload())->assertUnauthorized();
 
         $this->assertDatabaseCount('messages', 0);
     }
 
-    public function test_request_with_unknown_user_header_returns_404(): void
+    public function test_request_with_unknown_user_header_is_unauthenticated(): void
     {
         $this->postJson('/api/messages', $this->validPayload(), ['X-User-Id' => '999999'])
-            ->assertNotFound();
+            ->assertUnauthorized();
 
         $this->assertDatabaseCount('messages', 0);
     }
@@ -167,7 +167,7 @@ class StoreMessageTest extends TestCase
      * Each invalid payload must be rejected with 422, report the offending
      * field, and leave the messages table untouched.
      *
-     * @param array<string, mixed> $overrides invalid fields merged into an otherwise valid payload
+     * @param  array<string, mixed>  $overrides  invalid fields merged into an otherwise valid payload
      */
     #[DataProvider('invalidPayloadProvider')]
     public function test_invalid_payload_is_rejected(array $overrides, string $expectedErrorField): void
@@ -187,16 +187,16 @@ class StoreMessageTest extends TestCase
     public static function invalidPayloadProvider(): array
     {
         return [
-            'itinerary_id missing'         => [['itinerary_id' => null], 'itinerary_id'],
-            'itinerary_id not an integer'  => [['itinerary_id' => 'abc'], 'itinerary_id'],
+            'itinerary_id missing' => [['itinerary_id' => null], 'itinerary_id'],
+            'itinerary_id not an integer' => [['itinerary_id' => 'abc'], 'itinerary_id'],
             'itinerary_id not in database' => [['itinerary_id' => 999999], 'itinerary_id'],
-            'content missing'              => [['content' => null], 'content'],
-            'content empty string'         => [['content' => ''], 'content'],
+            'content missing' => [['content' => null], 'content'],
+            'content empty string' => [['content' => ''], 'content'],
             // Trimmed to '' by TrimStrings, then converted to null by
             // ConvertEmptyStringsToNull, so `required` rejects it.
-            'content whitespace only'      => [['content' => "   \t  "], 'content'],
-            'content not a string'         => [['content' => ['an', 'array']], 'content'],
-            'content longer than 5000'     => [['content' => str_repeat('a', 5001)], 'content'],
+            'content whitespace only' => [['content' => "   \t  "], 'content'],
+            'content not a string' => [['content' => ['an', 'array']], 'content'],
+            'content longer than 5000' => [['content' => str_repeat('a', 5001)], 'content'],
         ];
     }
 
@@ -215,7 +215,7 @@ class StoreMessageTest extends TestCase
     public function test_validation_runs_before_actor_resolution(): void
     {
         // An invalid payload with no actor header must still produce 422,
-        // not 404: the FormRequest validates before the controller runs.
+        // not 401: the FormRequest validates before the controller runs.
         $this->postJson('/api/messages', $this->validPayload(['content' => '']))
             ->assertUnprocessable()
             ->assertJsonValidationErrors(['content']);

@@ -9,6 +9,9 @@ class StoreMessageRequest extends FormRequest
 {
     /**
      * Determine if the user is authorized to make this request.
+     *
+     * Always true here: participant authorization needs the resolved
+     * itinerary, so it is enforced by MessagePolicy in the controller.
      */
     public function authorize(): bool
     {
@@ -28,7 +31,7 @@ class StoreMessageRequest extends FormRequest
     {
         return [
             'itinerary_id' => ['required', 'integer', 'exists:itineraries,id'],
-            'content'      => ['required', 'string', 'max:5000'],
+            'content' => ['required', 'string', 'max:5000'],
         ];
     }
 }

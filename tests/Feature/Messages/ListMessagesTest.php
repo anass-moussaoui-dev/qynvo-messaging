@@ -39,12 +39,12 @@ class ListMessagesTest extends TestCase
         parent::setUp();
 
         $this->traveller = User::factory()->traveller()->create();
-        $this->agency    = User::factory()->agency()->create();
-        $this->outsider  = User::factory()->create();
+        $this->agency = User::factory()->agency()->create();
+        $this->outsider = User::factory()->create();
 
         $this->itinerary = Itinerary::factory()->create([
             'traveller_id' => $this->traveller->id,
-            'agency_id'    => $this->agency->id,
+            'agency_id' => $this->agency->id,
         ]);
     }
 
@@ -90,18 +90,18 @@ class ListMessagesTest extends TestCase
     }
 
     /**
-     * Note: 401 Unauthorized would be the semantically correct status for a
-     * request with no actor. 404 is the current behavior (User::findOrFail on
-     * a null header) and this test pins it without endorsing it.
+     * A missing or unknown actor is a deliberate 401 (authentication
+     * failure), kept distinct from 403 (valid actor, not a participant) and
+     * 404 (the itinerary itself does not exist).
      */
-    public function test_request_without_user_header_returns_404(): void
+    public function test_request_without_user_header_is_unauthenticated(): void
     {
-        $this->listFor($this->itinerary)->assertNotFound();
+        $this->listFor($this->itinerary)->assertUnauthorized();
     }
 
-    public function test_request_with_unknown_user_header_returns_404(): void
+    public function test_request_with_unknown_user_header_is_unauthenticated(): void
     {
-        $this->listFor($this->itinerary, ['X-User-Id' => '999999'])->assertNotFound();
+        $this->listFor($this->itinerary, ['X-User-Id' => '999999'])->assertUnauthorized();
     }
 
     public function test_unknown_itinerary_returns_404(): void
@@ -115,7 +115,7 @@ class ListMessagesTest extends TestCase
 
     public function test_only_messages_of_the_bound_itinerary_are_returned(): void
     {
-        $mine  = Message::factory()->for($this->itinerary)->from($this->traveller)->create();
+        $mine = Message::factory()->for($this->itinerary)->from($this->traveller)->create();
         $other = Message::factory()->create(); // belongs to a different itinerary
 
         $response = $this->listFor($this->itinerary, $this->asUser($this->traveller))->assertOk();
@@ -129,9 +129,9 @@ class ListMessagesTest extends TestCase
         // Created deliberately out of chronological order so insertion order
         // cannot mask a missing ORDER BY. The two 09:30 rows share a
         // timestamp; the lower id must win the tie.
-        $late  = $this->messageAt('2026-06-12 10:00:00'); // newest
-        $tieA  = $this->messageAt('2026-06-12 09:30:00'); // tie, lower id
-        $tieB  = $this->messageAt('2026-06-12 09:30:00'); // tie, higher id
+        $late = $this->messageAt('2026-06-12 10:00:00'); // newest
+        $tieA = $this->messageAt('2026-06-12 09:30:00'); // tie, lower id
+        $tieB = $this->messageAt('2026-06-12 09:30:00'); // tie, higher id
         $early = $this->messageAt('2026-06-12 09:00:00'); // oldest, created last
 
         $this->listFor($this->itinerary, $this->asUser($this->traveller))
@@ -164,11 +164,11 @@ class ListMessagesTest extends TestCase
             ->assertExactJson([
                 'data' => [
                     [
-                        'id'           => $message->id,
+                        'id' => $message->id,
                         'itinerary_id' => $this->itinerary->id,
-                        'sender_type'  => 'agency',
-                        'content'      => 'Your driver will arrive at 9:00 AM.',
-                        'created_at'   => '2026-06-12T10:00:00+00:00',
+                        'sender_type' => 'agency',
+                        'content' => 'Your driver will arrive at 9:00 AM.',
+                        'created_at' => '2026-06-12T10:00:00+00:00',
                     ],
                 ],
             ]);

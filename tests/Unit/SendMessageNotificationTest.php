@@ -24,27 +24,27 @@ class SendMessageNotificationTest extends TestCase
 {
     public function test_handle_logs_the_notification_with_the_message_context(): void
     {
-        $message = (new Message())->forceFill([
-            'id'           => 42,
+        $message = (new Message)->forceFill([
+            'id' => 42,
             'itinerary_id' => 7,
-            'sender_type'  => UserType::Agency,
-            'content'      => 'Your driver will arrive at 9:00 AM.',
+            'sender_type' => UserType::Agency,
+            'content' => 'Your driver will arrive at 9:00 AM.',
         ]);
 
         Log::shouldReceive('info')
             ->once()
             ->with('Message notification dispatched', [
-                'message_id'   => 42,
+                'message_id' => 42,
                 'itinerary_id' => 7,
-                'sender_type'  => 'agency',
+                'sender_type' => 'agency',
             ]);
 
-        (new SendMessageNotification())->handle(new MessageSent($message));
+        (new SendMessageNotification)->handle(new MessageSent($message));
     }
 
     public function test_event_exposes_the_message_it_was_constructed_with(): void
     {
-        $message = (new Message())->forceFill(['id' => 1]);
+        $message = (new Message)->forceFill(['id' => 1]);
 
         $event = new MessageSent($message);
 

@@ -29,7 +29,7 @@ class DatabaseSeederTest extends TestCase
         // sole() doubles as an assertion: it throws if there is not exactly
         // one matching row.
         $traveller = User::where('type', UserType::Traveller)->sole();
-        $agency    = User::where('type', UserType::Agency)->sole();
+        $agency = User::where('type', UserType::Agency)->sole();
         $itinerary = Itinerary::query()->sole();
 
         $this->assertSame($traveller->id, $itinerary->traveller_id);

@@ -20,7 +20,7 @@ class ItineraryFactory extends Factory
     {
         return [
             'traveller_id' => User::factory()->traveller(),
-            'agency_id'    => User::factory()->agency(),
+            'agency_id' => User::factory()->agency(),
         ];
     }
 }

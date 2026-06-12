@@ -26,9 +26,9 @@ class MessageFactory extends Factory
     {
         return [
             'itinerary_id' => Itinerary::factory(),
-            'sender_id'    => User::factory()->traveller(),
-            'sender_type'  => UserType::Traveller,
-            'content'      => fake()->sentence(),
+            'sender_id' => User::factory()->traveller(),
+            'sender_type' => UserType::Traveller,
+            'content' => fake()->sentence(),
         ];
     }
 
@@ -39,7 +39,7 @@ class MessageFactory extends Factory
     public function from(User $sender): static
     {
         return $this->state(fn () => [
-            'sender_id'   => $sender->id,
+            'sender_id' => $sender->id,
             'sender_type' => $sender->type,
         ]);
     }

@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('itineraries', function (Blueprint $table) {
             $table->id();
-            // we use plain unsignedBigInteger and not foreignId()->constrained()? Because there are no travellers or agencies tables to reference at the moment. the task explicitly scopes out the user system. 
+            // we use plain unsignedBigInteger and not foreignId()->constrained()? Because there are no travellers or agencies tables to reference at the moment. the task explicitly scopes out the user system.
             $table->unsignedBigInteger('traveller_id');
             $table->unsignedBigInteger('agency_id');
             $table->timestamps();

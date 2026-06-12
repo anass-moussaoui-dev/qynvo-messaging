@@ -7,23 +7,33 @@ use App\Http\Requests\StoreMessageRequest;
 use App\Http\Resources\MessageResource;
 use App\Models\Itinerary;
 use App\Models\Message;
-use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
-use Illuminate\Support\Facades\Gate;
 use App\Models\User;
 use App\Policies\MessagePolicy;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Support\Facades\Gate;
+use Symfony\Component\HttpFoundation\Response;
 
+/**
+ * Messaging endpoints for an itinerary's traveller ↔ agency conversation.
+ *
+ * Authorization uses Gate::allowIf with an injected MessagePolicy rather than
+ * $this->authorize(): policy auto-discovery maps MessagePolicy to the Message
+ * model, so ability checks against an Itinerary would not resolve to it.
+ */
 class MessageController extends Controller
 {
+    public function __construct(
+        private readonly MessagePolicy $policy,
+    ) {}
 
-   /**
-    * Retrieve all messages for a given itinerary, oldest first.
-    */
-   public function index(Request $request, Itinerary $itinerary)
+    /**
+     * Retrieve all messages for a given itinerary, oldest first.
+     */
+    public function index(Request $request, Itinerary $itinerary): AnonymousResourceCollection
     {
-        $user = User::findOrFail($request->header('X-User-Id'));
-
-        Gate::allowIf(app(MessagePolicy::class)->viewItineraryMessages($user, $itinerary));
+        Gate::allowIf($this->policy->viewItineraryMessages($this->actingUser($request), $itinerary));
 
         $messages = $itinerary->messages()
             ->orderBy('created_at')
@@ -36,23 +46,21 @@ class MessageController extends Controller
     /**
      * Send a new message.
      *
-     * The sender is the acting user (X-User-Id header), never a payload value,
-     * so identity cannot be spoofed through the request body.
+     * The sender is the acting user, never a payload value, so identity
+     * cannot be spoofed through the request body.
      */
-    public function store(StoreMessageRequest $request)
+    public function store(StoreMessageRequest $request): JsonResponse
     {
-        $sender    = User::findOrFail($request->header('X-User-Id'));
+        $sender = $this->actingUser($request);
         $itinerary = Itinerary::findOrFail($request->validated('itinerary_id'));
 
-        // Gate::allowIf instead of $this->authorize(): policy discovery maps
-        // MessagePolicy to the Message model, not to the Itinerary passed here.
-        Gate::allowIf(app(MessagePolicy::class)->sendMessage($sender, $itinerary));
+        Gate::allowIf($this->policy->sendMessage($sender, $itinerary));
 
         $message = Message::create([
             'itinerary_id' => $itinerary->id,
-            'sender_id'    => $sender->id,
-            'sender_type'  => $sender->type,   // derived — single source of truth
-            'content'      => $request->validated('content'),
+            'sender_id' => $sender->id,
+            'sender_type' => $sender->type, // derived — single source of truth
+            'content' => $request->validated('content'),
         ]);
 
         MessageSent::dispatch($message);
@@ -60,5 +68,22 @@ class MessageController extends Controller
         return (new MessageResource($message))
             ->response()
             ->setStatusCode(Response::HTTP_CREATED);
+    }
+
+    /**
+     * Resolve the acting user from the X-User-Id header — this task's
+     * stand-in for real authentication.
+     *
+     * A missing or unknown actor is an authentication failure (401), kept
+     * distinct from 403 (valid actor, not a participant) and 404 (the
+     * itinerary does not exist).
+     */
+    private function actingUser(Request $request): User
+    {
+        $user = User::find($request->header('X-User-Id'));
+
+        abort_if($user === null, Response::HTTP_UNAUTHORIZED, 'A valid X-User-Id header is required.');
+
+        return $user;
     }
 }

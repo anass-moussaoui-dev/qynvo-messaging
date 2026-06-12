@@ -20,8 +20,10 @@ use PHPUnit\Framework\TestCase;
 class MessagePolicyTest extends TestCase
 {
     private const TRAVELLER_ID = 10;
-    private const AGENCY_ID    = 20;
-    private const OUTSIDER_ID  = 99;
+
+    private const AGENCY_ID = 20;
+
+    private const OUTSIDER_ID = 99;
 
     private MessagePolicy $policy;
 
@@ -31,17 +33,17 @@ class MessagePolicyTest extends TestCase
     {
         parent::setUp();
 
-        $this->policy = new MessagePolicy();
+        $this->policy = new MessagePolicy;
 
-        $this->itinerary = (new Itinerary())->forceFill([
+        $this->itinerary = (new Itinerary)->forceFill([
             'traveller_id' => self::TRAVELLER_ID,
-            'agency_id'    => self::AGENCY_ID,
+            'agency_id' => self::AGENCY_ID,
         ]);
     }
 
     private function userWithId(int $id): User
     {
-        return (new User())->forceFill(['id' => $id]);
+        return (new User)->forceFill(['id' => $id]);
     }
 
     public function test_traveller_of_the_itinerary_may_view_its_messages(): void

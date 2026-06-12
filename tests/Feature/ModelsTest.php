@@ -23,7 +23,7 @@ class ModelsTest extends TestCase
     public function test_itinerary_has_many_messages(): void
     {
         $itinerary = Itinerary::factory()->create();
-        $messages  = Message::factory()->count(2)->for($itinerary)->create();
+        $messages = Message::factory()->count(2)->for($itinerary)->create();
         Message::factory()->create(); // different itinerary — must not appear
 
         $this->assertEqualsCanonicalizing(
@@ -34,9 +34,9 @@ class ModelsTest extends TestCase
 
     public function test_message_belongs_to_its_itinerary_and_sender(): void
     {
-        $sender    = User::factory()->traveller()->create();
+        $sender = User::factory()->traveller()->create();
         $itinerary = Itinerary::factory()->create(['traveller_id' => $sender->id]);
-        $message   = Message::factory()->for($itinerary)->from($sender)->create();
+        $message = Message::factory()->for($itinerary)->from($sender)->create();
 
         $this->assertTrue($message->itinerary->is($itinerary));
         $this->assertTrue($message->sender->is($sender));
@@ -45,11 +45,11 @@ class ModelsTest extends TestCase
     public function test_itinerary_belongs_to_its_traveller_and_agency(): void
     {
         $traveller = User::factory()->traveller()->create();
-        $agency    = User::factory()->agency()->create();
+        $agency = User::factory()->agency()->create();
 
         $itinerary = Itinerary::factory()->create([
             'traveller_id' => $traveller->id,
-            'agency_id'    => $agency->id,
+            'agency_id' => $agency->id,
         ]);
 
         $this->assertTrue($itinerary->traveller->is($traveller));
@@ -67,7 +67,7 @@ class ModelsTest extends TestCase
 
     public function test_message_sender_type_is_hydrated_as_a_user_type_enum(): void
     {
-        $sender  = User::factory()->agency()->create();
+        $sender = User::factory()->agency()->create();
         $message = Message::factory()->from($sender)->create();
 
         $this->assertSame(UserType::Agency, $message->fresh()->sender_type);
@@ -83,7 +83,7 @@ class ModelsTest extends TestCase
 
     public function test_message_factory_from_state_copies_the_sender_identity(): void
     {
-        $sender  = User::factory()->agency()->create();
+        $sender = User::factory()->agency()->create();
         $message = Message::factory()->from($sender)->create();
 
         $this->assertSame($sender->id, $message->sender_id);
