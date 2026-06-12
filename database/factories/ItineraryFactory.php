@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Itinerary;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,8 +19,8 @@ class ItineraryFactory extends Factory
     public function definition(): array
     {
         return [
-            'traveller_id' => 1,
-            'agency_id'    => 1,
+            'traveller_id' => User::factory()->traveller(),
+            'agency_id'    => User::factory()->agency(),
         ];
     }
 }
