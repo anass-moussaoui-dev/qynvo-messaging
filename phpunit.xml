@@ -18,6 +18,9 @@
         </include>
     </source>
     <php>
+        <!-- force="true": never inherit a real key from the developer's shell
+             or .env — tests must not be able to reach the real Anthropic API. -->
+        <env name="ANTHROPIC_API_KEY" value="" force="true"/>
         <env name="APP_ENV" value="testing"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>

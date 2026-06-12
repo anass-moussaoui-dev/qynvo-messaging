@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\UserType;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -26,6 +27,7 @@ class UserFactory extends Factory
     {
         return [
             'name' => fake()->name(),
+            'type' => fake()->randomElement(UserType::cases()),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
@@ -41,5 +43,21 @@ class UserFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'email_verified_at' => null,
         ]);
+    }
+
+    /**
+     * Indicate that the user is a traveller.
+     */
+    public function traveller(): static
+    {
+        return $this->state(fn () => ['type' => UserType::Traveller]);
+    }
+
+    /**
+     * Indicate that the user is an agency.
+     */
+    public function agency(): static
+    {
+        return $this->state(fn () => ['type' => UserType::Agency]);
     }
 }

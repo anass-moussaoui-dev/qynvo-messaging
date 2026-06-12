@@ -14,6 +14,10 @@ return new class extends Migration
         Schema::create('users', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+
+            // we can use enum type for more strictness. However, it has limited support on SQLite, so I used a string with a DB-level check constraint for compatibility.
+            $table->string('type'); // 'traveller' | 'agency'
+
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
